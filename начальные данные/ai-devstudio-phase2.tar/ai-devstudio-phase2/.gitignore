@@ -1,0 +1,15 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+node_modules/
+.next/
+*.egg-info/
+dist/
+build/
+.DS_Store
+*.log
+minio_data/
+postgres_data/
+redis_data/
