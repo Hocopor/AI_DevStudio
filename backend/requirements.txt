@@ -16,7 +16,6 @@ passlib[bcrypt]==1.7.4
 # Redis / Celery
 redis==5.1.1
 celery==5.4.0
-celery-beat==0.0.1
 
 # MinIO
 minio==7.2.9
