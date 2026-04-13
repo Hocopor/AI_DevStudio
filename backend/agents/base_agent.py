@@ -10,7 +10,7 @@ from loguru import logger
 from sqlalchemy import select, update
 
 from core.database import AsyncSessionLocal
-from models import Task, TaskComment, Agent
+from models import Task, TaskComment, Agent, Project
 from services.llm_provider import call_llm
 from services.notification_service import notify
 from services.skills_service import format_skills_for_prompt, auto_detect_and_create_skill
@@ -63,6 +63,65 @@ class BaseAgent(ABC):
                 .order_by(Task.priority.desc(), Task.created_at.asc())
             )
             return result.scalars().all()
+
+    async def build_task_context(self, task: Task) -> str:
+        async with AsyncSessionLocal() as db:
+            project = await db.get(Project, task.project_id) if task.project_id else None
+            result = await db.execute(
+                select(TaskComment)
+                .where(TaskComment.task_id == task.id)
+                .order_by(TaskComment.created_at.asc())
+            )
+            comments = result.scalars().all()
+
+        lines = [
+            "Контекст задачи:",
+            f"- ID: {task.id}",
+            f"- Статус: {task.status}",
+            f"- Приоритет: {task.priority}",
+            f"- Назначена: {task.assigned_to or 'не назначена'}",
+            f"- Теги: {', '.join(task.tags) if task.tags else 'нет'}",
+        ]
+
+        if task.live_plan:
+            lines.append(f"- Live plan notes: {task.live_plan.get('notes', '') or 'нет'}")
+
+        lines.extend([
+            "",
+            "Описание задачи:",
+            task.description or "не указано",
+        ])
+
+        if project:
+            lines.extend([
+                "",
+                "Контекст проекта:",
+                f"- Название: {project.title}",
+                f"- Описание: {project.description or 'не указано'}",
+                f"- Цель: {project.goal or 'не указана'}",
+                f"- Целевая аудитория: {project.target_audience or 'не указана'}",
+                f"- Модель монетизации: {project.monetization_model or 'не указана'}",
+                f"- Режим автономности: {project.autonomy_mode}",
+                f"- Метрики успеха: {json.dumps(project.success_metrics, ensure_ascii=False) if project.success_metrics else 'не указаны'}",
+                f"- Roadmap: {json.dumps(project.roadmap, ensure_ascii=False) if project.roadmap else 'не указан'}",
+            ])
+
+        lines.extend(["", "Комментарии по задаче:"])
+        if comments:
+            for comment in comments[-20:]:
+                lines.append(f"- [{comment.created_at.isoformat()}] {comment.author}: {comment.content}")
+        else:
+            lines.append("- комментариев нет")
+
+        lines.extend([
+            "",
+            "Правила работы с контекстом:",
+            "- Учитывай ответы владельца в комментариях как актуальные уточнения.",
+            "- Не задавай повторно вопрос, если ответ уже есть в комментариях или в данных проекта.",
+            "- Если задача возвращена из awaiting_approval в todo, сначала обработай новые комментарии владельца.",
+        ])
+
+        return "\n".join(lines)
 
     async def take_task(self, task: Task):
         async with AsyncSessionLocal() as db:
@@ -138,12 +197,13 @@ class BaseAgent(ABC):
 
     async def create_live_plan(self, task: Task) -> dict:
         system = await self.get_full_system_prompt()
+        context = await self.build_task_context(task)
         messages = [
             {"role": "system", "content": system},
             {"role": "user", "content": (
                 f"Составь живой план. ТОЛЬКО JSON без markdown:\n"
                 f'{{"steps":[{{"step":"...","status":"pending"}}],"notes":"..."}}\n\n'
-                f"Задача: {task.title}\nОписание: {task.description or 'не указано'}"
+                f"Задача: {task.title}\n\n{context}"
             )},
         ]
         raw = await self._call_llm(messages, task_id=task.id, max_tokens=1024)

@@ -17,12 +17,13 @@ async def _generic_execute(agent: BaseAgent, task: Task, role_instruction: str =
     LLM выполняет задачу, результат сохраняется в MinIO и фиксируется в комментарии.
     """
     system = await agent.get_full_system_prompt()
+    context = await agent.build_task_context(task)
     messages = [
         {"role": "system", "content": system},
         {"role": "user", "content": (
             f"Выполни задачу. Ответь ТОЛЬКО JSON без markdown:\n"
             f'{{"summary":"что сделано","result":"основной результат/текст/план","files":{{"name.ext":"содержимое"}},"notes":"важные замечания"}}\n\n'
-            f"Задача: {task.title}\nОписание: {task.description or 'не указано'}"
+            f"Задача: {task.title}\n\n{context}"
             + (f"\n\nИнструкция: {role_instruction}" if role_instruction else "")
         )},
     ]
@@ -559,6 +560,7 @@ class DirectorAgent(BaseAgent):
 
     async def _analyze_task(self, task: Task) -> dict:
         system = await self.get_full_system_prompt()
+        context = await self.build_task_context(task)
         messages = [
             {"role": "system", "content": system},
             {"role": "user", "content": (
@@ -571,7 +573,8 @@ class DirectorAgent(BaseAgent):
                 f'  {{"title":"...","description":"подробно для исполнителя","assigned_to":"agent_id","priority":"high"}}\n'
                 f']\n'
                 f'}}\n\n'
-                f"Задача: {task.title}\nОписание: {task.description or 'нет'}"
+                f"Задача: {task.title}\n\n{context}\n\n"
+                f"Если владелец уже ответил в комментариях или нужные данные есть в проекте, не запрашивай повторное уточнение."
             )},
         ]
         raw = await self._call_llm(messages, task_id=task.id, max_tokens=3000)

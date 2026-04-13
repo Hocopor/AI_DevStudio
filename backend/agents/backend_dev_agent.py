@@ -97,14 +97,15 @@ class BackendDevAgent(BaseAgent):
 
     async def _implement(self, task: Task) -> dict:
         """Реализовать задачу через LLM"""
+        context = await self.build_task_context(task)
         messages = [
             {"role": "system", "content": await self.get_full_system_prompt()},
             {
                 "role": "user",
                 "content": (
                     f"Выполни задачу разработки.\n\n"
-                    f"Задача: {task.title}\n"
-                    f"Описание: {task.description or 'не указано'}\n\n"
+                    f"Задача: {task.title}\n\n"
+                    f"{context}\n\n"
                     f"Верни результат в JSON (без markdown):\n"
                     f"{{\n"
                     f'  "summary": "что реализовано",\n'

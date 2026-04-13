@@ -146,8 +146,14 @@ async def add_comment(
         **body.model_dump(),
     )
     db.add(comment)
+    old_status = task.status
+    owner_replied_to_approval = body.author == "owner" and task.status == "awaiting_approval"
+    if owner_replied_to_approval:
+        task.status = "todo"
+
     await db.commit()
     await db.refresh(comment)
+    await db.refresh(task)
 
     await ws_manager.broadcast({
         "event": "task_comment_added",
@@ -155,4 +161,14 @@ async def add_comment(
         "author": comment.author,
         "project_id": task.project_id,
     })
+
+    if owner_replied_to_approval:
+        await ws_manager.broadcast({
+            "event": "task_status_changed",
+            "task_id": task_id,
+            "old_status": old_status,
+            "new_status": task.status,
+            "project_id": task.project_id,
+        })
+
     return comment
