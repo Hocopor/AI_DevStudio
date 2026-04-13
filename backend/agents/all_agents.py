@@ -4,7 +4,7 @@
 """
 import json
 from models import Task
-from agents.base_agent import BaseAgent
+from base_agent import BaseAgent
 
 
 # ─────────────────────────────────────────────────────────────

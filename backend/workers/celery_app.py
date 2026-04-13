@@ -13,6 +13,9 @@ from loguru import logger
 APP_ROOT = Path(__file__).resolve().parent.parent
 if str(APP_ROOT) not in sys.path:
     sys.path.insert(0, str(APP_ROOT))
+AGENTS_ROOT = APP_ROOT / "agents"
+if str(AGENTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(AGENTS_ROOT))
 
 celery_app = Celery(
     "devstudio",
@@ -61,8 +64,8 @@ def _run_async(coro):
 
 
 def _get_agent(agent_id: str):
-    from agents.backend_dev_agent import BackendDevAgent
-    from agents.all_agents import (
+    from backend_dev_agent import BackendDevAgent
+    from all_agents import (
         DirectorAgent, MarketAnalystAgent, ProductManagerAgent,
         FrontendDevAgent, UXUIAgent, QAAgent, DevOpsAgent,
         MarketerAgent, CopywriterAgent, SMMAgent, SEOAgent, FinanceAgent,
