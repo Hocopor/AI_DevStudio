@@ -16,6 +16,18 @@ if str(APP_ROOT) not in sys.path:
 AGENTS_ROOT = APP_ROOT / "agents"
 if str(AGENTS_ROOT) not in sys.path:
     sys.path.insert(0, str(AGENTS_ROOT))
+MODELS_ROOT = APP_ROOT / "models"
+if str(MODELS_ROOT) not in sys.path:
+    sys.path.insert(0, str(MODELS_ROOT))
+CORE_ROOT = APP_ROOT / "core"
+if str(CORE_ROOT) not in sys.path:
+    sys.path.insert(0, str(CORE_ROOT))
+SERVICES_ROOT = APP_ROOT / "services"
+if str(SERVICES_ROOT) not in sys.path:
+    sys.path.insert(0, str(SERVICES_ROOT))
+SCHEMAS_ROOT = APP_ROOT / "schemas"
+if str(SCHEMAS_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCHEMAS_ROOT))
 
 celery_app = Celery(
     "devstudio",
