@@ -1,16 +1,21 @@
 'use client'
+
 import { useEffect, useState } from 'react'
-import { agentsApi, api } from '@/lib/api'
 import { Settings, Plus, Trash2, ChevronDown, ChevronUp, Share2 } from 'lucide-react'
+import { agentsApi, api } from '@/lib/api'
 
 const STATUS_COLOR: Record<string, string> = {
-  active:   'bg-emerald-400',
-  idle:     'bg-gray-500',
-  error:    'bg-red-500',
-  disabled: 'bg-gray-700',
+  active: 'bg-[var(--success)]',
+  idle: 'bg-stone-500',
+  error: 'bg-[var(--danger)]',
+  disabled: 'bg-stone-700',
 }
+
 const STATUS_LABEL: Record<string, string> = {
-  active: 'Работает', idle: 'Ожидает', error: 'Ошибка', disabled: 'Отключён',
+  active: 'Работает',
+  idle: 'Ожидает',
+  error: 'Ошибка',
+  disabled: 'Отключён',
 }
 
 const PROVIDERS = ['deepseek', 'google', 'codex']
@@ -27,36 +32,50 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true)
 
   const load = async () => {
-    const [ag, sk] = await Promise.all([
-      agentsApi.list(),
-      api.get('/skills'),
-    ])
+    const [ag, sk] = await Promise.all([agentsApi.list(), api.get('/skills')])
     setAgents(ag.data)
     setSkills(sk.data)
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [])
 
-  if (loading) return (
-    <div className="max-w-5xl mx-auto space-y-3 animate-pulse">
-      {[...Array(5)].map((_, i) => <div key={i} className="h-20 bg-gray-900 rounded-xl border border-gray-800" />)}
-    </div>
-  )
+  if (loading) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        <div className="page-header min-h-[170px]" />
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="panel h-28" />
+        ))}
+      </div>
+    )
+  }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Команда</h1>
-        <div className="text-sm text-gray-500">{agents.filter(a => a.status === 'active').length} активных из {agents.length}</div>
-      </div>
+    <div className="space-y-6">
+      <header className="page-header">
+        <div>
+          <div className="page-kicker">Agent Console</div>
+          <h1 className="page-title">Команда и её операционные настройки.</h1>
+          <p className="page-subtitle">
+            Управление провайдерами, моделями, системными промптами и skills в одном плотном реестре.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <AgentStat label="Всего агентов" value={agents.length} />
+          <AgentStat label="Активных" value={agents.filter((a) => a.status === 'active').length} />
+          <AgentStat label="Skills" value={skills.length} />
+        </div>
+      </header>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {agents.map((agent) => (
           <AgentCard
             key={agent.id}
             agent={agent}
-            agentSkills={skills.filter(s => s.agent_id === agent.id)}
+            agentSkills={skills.filter((s) => s.agent_id === agent.id)}
             allAgents={agents}
             expanded={expanded === agent.id}
             onToggle={() => setExpanded(expanded === agent.id ? null : agent.id)}
@@ -87,143 +106,126 @@ function AgentCard({ agent, agentSkills, allAgents, expanded, onToggle, onReload
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      {/* Заголовок */}
-      <div className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-800/30 transition" onClick={onToggle}>
-        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${STATUS_COLOR[agent.status] ?? 'bg-gray-500'}`} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3">
-            <span className="text-white font-medium">{agent.name}</span>
-            <span className="text-xs text-gray-500">{agent.role}</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${
-              agent.status === 'active' ? 'bg-emerald-900/40 text-emerald-400' :
-              agent.status === 'error' ? 'bg-red-900/40 text-red-400' :
-              'bg-gray-800 text-gray-500'
-            }`}>
-              {STATUS_LABEL[agent.status] ?? agent.status}
-            </span>
+    <section className="panel overflow-hidden">
+      <div className="flex cursor-pointer flex-col gap-4 px-5 py-5 transition hover:bg-white/[0.02] md:flex-row md:items-center" onClick={onToggle}>
+        <span className={`mt-1 h-2.5 w-2.5 rounded-full shrink-0 ${STATUS_COLOR[agent.status] ?? 'bg-stone-500'}`} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-base font-medium text-stone-100">{agent.name}</span>
+            <span className="pill pill-neutral">{agent.role}</span>
+            <span className="pill pill-neutral">{STATUS_LABEL[agent.status] ?? agent.status}</span>
           </div>
-          <div className="text-xs text-gray-600 mt-0.5">
-            {agent.provider} / {agent.model} · {agent.tasks_completed} задач выполнено · {agentSkills.length} skills
+          <div className="mt-2 text-xs text-stone-500">
+            {agent.provider} / {agent.model} • {agent.tasks_completed} задач выполнено • {agentSkills.length} skills
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={(e) => { e.stopPropagation(); trigger() }}
-            className="text-xs bg-indigo-900/40 text-indigo-400 hover:bg-indigo-900/60 px-3 py-1 rounded-lg transition"
-          >
+          <button onClick={(e) => { e.stopPropagation(); trigger() }} className="btn-primary !px-3 !py-2 !text-xs">
             Запустить
           </button>
-          {expanded ? <ChevronUp size={16} className="text-gray-600" /> : <ChevronDown size={16} className="text-gray-600" />}
+          {expanded ? <ChevronUp size={16} className="text-stone-500" /> : <ChevronDown size={16} className="text-stone-500" />}
         </div>
       </div>
 
-      {/* Развёрнутая панель */}
       {expanded && (
-        <div className="border-t border-gray-800 px-5 py-5 space-y-5">
-          {/* Настройки провайдера */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-white">Настройки</h3>
-              {!editing && (
-                <button onClick={() => setEditing(true)} className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition">
-                  <Settings size={12} /> Редактировать
-                </button>
+        <div className="border-t border-white/10 px-5 py-5">
+          <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-stone-300">Настройки</h3>
+                {!editing && (
+                  <button onClick={() => setEditing(true)} className="btn-secondary !px-3 !py-2 !text-xs">
+                    <Settings size={12} />
+                    Редактировать
+                  </button>
+                )}
+              </div>
+
+              {editing ? (
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-xs uppercase tracking-[0.14em] text-stone-500">Провайдер</label>
+                      <select
+                        value={form.provider}
+                        onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value, model: MODELS[e.target.value]?.[0] || '' }))}
+                        className="input-base"
+                      >
+                        {PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-xs uppercase tracking-[0.14em] text-stone-500">Модель</label>
+                      <select value={form.model} onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))} className="input-base">
+                        {(MODELS[form.provider] || [form.model]).map((m) => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-xs uppercase tracking-[0.14em] text-stone-500">Системный промпт</label>
+                    <textarea
+                      rows={8}
+                      value={form.system_prompt}
+                      onChange={(e) => setForm((f) => ({ ...f, system_prompt: e.target.value }))}
+                      className="input-base resize-none font-mono"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => setEditing(false)} className="btn-secondary flex-1">Отмена</button>
+                    <button onClick={save} disabled={saving} className="btn-primary flex-1">{saving ? 'Сохраняем...' : 'Сохранить'}</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-3">
+                  <InfoBox label="Провайдер" value={agent.provider} />
+                  <InfoBox label="Модель" value={agent.model} />
+                  <InfoBox label="Задач выполнено" value={agent.tasks_completed} />
+                </div>
               )}
             </div>
 
-            {editing ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Провайдер</label>
-                    <select
-                      value={form.provider}
-                      onChange={e => setForm(f => ({ ...f, provider: e.target.value, model: MODELS[e.target.value]?.[0] || '' }))}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
-                    >
-                      {PROVIDERS.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Модель</label>
-                    <select
-                      value={form.model}
-                      onChange={e => setForm(f => ({ ...f, model: e.target.value }))}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
-                    >
-                      {(MODELS[form.provider] || [form.model]).map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Системный промпт (оставь пустым для дефолтного)</label>
-                  <textarea
-                    rows={6}
-                    value={form.system_prompt}
-                    onChange={e => setForm(f => ({ ...f, system_prompt: e.target.value }))}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:border-indigo-500 resize-none"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setEditing(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg py-2 text-sm transition">
-                    Отмена
-                  </button>
-                  <button onClick={save} disabled={saving} className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg py-2 text-sm transition">
-                    {saving ? 'Сохраняем...' : 'Сохранить'}
-                  </button>
-                </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-stone-300">Skills</h3>
+                <button onClick={() => setShowSkillForm(true)} className="btn-secondary !px-3 !py-2 !text-xs">
+                  <Plus size={12} />
+                  Добавить
+                </button>
               </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <InfoBox label="Провайдер" value={agent.provider} />
-                <InfoBox label="Модель" value={agent.model} />
-                <InfoBox label="Задач выполнено" value={agent.tasks_completed} />
-              </div>
-            )}
-          </div>
 
-          {/* Skills */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-white">Skills ({agentSkills.length})</h3>
-              <button
-                onClick={() => setShowSkillForm(true)}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition"
-              >
-                <Plus size={12} /> Добавить
-              </button>
+              {agentSkills.length === 0 ? (
+                <div className="panel-soft px-4 py-8 text-center text-sm text-stone-500">Skills пока не добавлены.</div>
+              ) : (
+                <div className="space-y-3">
+                  {agentSkills.map((skill: any) => (
+                    <SkillCard key={skill.id} skill={skill} allAgents={allAgents} onReload={onReload} />
+                  ))}
+                </div>
+              )}
+
+              {showSkillForm && <AddSkillForm agentId={agent.id} onClose={() => setShowSkillForm(false)} onCreated={onReload} />}
             </div>
-
-            {agentSkills.length === 0 ? (
-              <div className="text-xs text-gray-600 py-2">Skills отсутствуют</div>
-            ) : (
-              <div className="space-y-2">
-                {agentSkills.map((skill: any) => (
-                  <SkillCard key={skill.id} skill={skill} allAgents={allAgents} onReload={onReload} />
-                ))}
-              </div>
-            )}
-
-            {showSkillForm && (
-              <AddSkillForm
-                agentId={agent.id}
-                onClose={() => setShowSkillForm(false)}
-                onCreated={onReload}
-              />
-            )}
           </div>
         </div>
       )}
+    </section>
+  )
+}
+
+function AgentStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.03)] px-4 py-3">
+      <div className="text-[0.68rem] uppercase tracking-[0.16em] text-stone-500">{label}</div>
+      <div className="mt-2 text-xl font-semibold text-stone-100">{value}</div>
     </div>
   )
 }
 
 function InfoBox({ label, value }: any) {
   return (
-    <div className="bg-gray-800/50 rounded-lg p-3">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className="text-sm text-white font-mono">{value}</div>
+    <div className="panel-soft p-4">
+      <div className="text-[0.68rem] uppercase tracking-[0.14em] text-stone-500">{label}</div>
+      <div className="mt-2 text-sm font-medium text-stone-100">{value}</div>
     </div>
   )
 }
@@ -244,44 +246,43 @@ function SkillCard({ skill, allAgents, onReload }: any) {
   }
 
   return (
-    <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-white font-medium">{skill.name}</span>
-            <span className="text-xs text-gray-600">v{skill.version}</span>
-            {!skill.is_active && <span className="text-xs text-gray-600">(отключён)</span>}
+    <div className="panel-soft p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-stone-100">{skill.name}</span>
+            <span className="pill pill-neutral">v{skill.version}</span>
+            {!skill.is_active && <span className="pill pill-neutral">inactive</span>}
           </div>
-          {skill.description && <div className="text-xs text-gray-500 mt-0.5">{skill.description}</div>}
+          {skill.description && <div className="mt-2 text-sm text-stone-400">{skill.description}</div>}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <button onClick={() => setShowDistribute(!showDistribute)} className="p-1 text-gray-600 hover:text-indigo-400 transition" title="Распространить">
+        <div className="flex items-center gap-1">
+          <button onClick={() => setShowDistribute(!showDistribute)} className="btn-secondary !px-2.5 !py-2">
             <Share2 size={13} />
           </button>
-          <button onClick={deleteSkill} className="p-1 text-gray-600 hover:text-red-400 transition">
+          <button onClick={deleteSkill} className="btn-secondary !px-2.5 !py-2">
             <Trash2 size={13} />
           </button>
         </div>
       </div>
 
       {showDistribute && (
-        <div className="mt-3 pt-3 border-t border-gray-700">
-          <div className="text-xs text-gray-400 mb-2">Распространить на агентов:</div>
-          <div className="flex flex-wrap gap-2 mb-2">
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <div className="text-xs uppercase tracking-[0.14em] text-stone-500">Распространить на агентов</div>
+          <div className="mt-3 flex flex-wrap gap-3">
             {allAgents.filter((a: any) => a.id !== skill.agent_id).map((a: any) => (
-              <label key={a.id} className="flex items-center gap-1 cursor-pointer">
+              <label key={a.id} className="flex items-center gap-2 text-sm text-stone-300">
                 <input
                   type="checkbox"
                   checked={selected.includes(a.id)}
-                  onChange={e => setSelected(prev => e.target.checked ? [...prev, a.id] : prev.filter(x => x !== a.id))}
-                  className="accent-indigo-500"
+                  onChange={(e) => setSelected((prev) => e.target.checked ? [...prev, a.id] : prev.filter((x) => x !== a.id))}
+                  className="accent-[var(--accent)]"
                 />
-                <span className="text-xs text-gray-400">{a.name}</span>
+                {a.name}
               </label>
             ))}
           </div>
-          <button onClick={distribute} disabled={selected.length === 0}
-            className="text-xs bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg transition">
+          <button onClick={distribute} disabled={selected.length === 0} className="btn-primary mt-4 !px-3 !py-2 !text-xs">
             Распространить
           </button>
         </div>
@@ -303,19 +304,16 @@ function AddSkillForm({ agentId, onClose, onCreated }: any) {
   }
 
   return (
-    <div className="mt-3 pt-3 border-t border-gray-700 space-y-3">
-      <div className="text-xs font-medium text-white">Новый Skill</div>
-      <input placeholder="Название *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" />
-      <input placeholder="Описание" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" />
-      <textarea rows={4} placeholder="Содержимое (промпт / инструкция) *" value={form.content}
-        onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:border-indigo-500 resize-none" />
-      <div className="flex gap-2">
-        <button onClick={onClose} className="flex-1 bg-gray-800 text-gray-400 rounded-lg py-1.5 text-sm">Отмена</button>
-        <button onClick={save} disabled={saving || !form.name || !form.content}
-          className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg py-1.5 text-sm transition">
+    <div className="panel-soft p-4">
+      <div className="text-xs uppercase tracking-[0.14em] text-stone-500">Новый skill</div>
+      <div className="mt-4 space-y-3">
+        <input placeholder="Название *" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="input-base" />
+        <input placeholder="Описание" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} className="input-base" />
+        <textarea rows={5} placeholder="Содержимое *" value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} className="input-base resize-none font-mono" />
+      </div>
+      <div className="mt-4 flex gap-3">
+        <button onClick={onClose} className="btn-secondary flex-1">Отмена</button>
+        <button onClick={save} disabled={saving || !form.name || !form.content} className="btn-primary flex-1">
           {saving ? 'Сохраняем...' : 'Создать'}
         </button>
       </div>

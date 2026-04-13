@@ -1,34 +1,38 @@
 'use client'
+
 import { useEffect, useState } from 'react'
-import { projectsApi } from '@/lib/api'
 import Link from 'next/link'
-import { Plus, FolderOpen, ChevronRight } from 'lucide-react'
+import { ChevronRight, FolderOpen, Plus } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ru } from 'date-fns/locale'
+import { projectsApi } from '@/lib/api'
 
 const STATUS_TABS = [
   { key: undefined, label: 'Все' },
-  { key: 'active',   label: 'Активные' },
-  { key: 'paused',   label: 'На паузе' },
-  { key: 'done',     label: 'Завершённые' },
+  { key: 'active', label: 'Активные' },
+  { key: 'paused', label: 'На паузе' },
+  { key: 'done', label: 'Завершённые' },
   { key: 'archived', label: 'Архив' },
 ]
 
 const STATUS_BADGE: Record<string, string> = {
-  active:   'bg-emerald-900/40 text-emerald-400',
-  paused:   'bg-amber-900/40 text-amber-400',
-  done:     'bg-indigo-900/40 text-indigo-400',
-  archived: 'bg-gray-800 text-gray-500',
+  active: 'bg-[rgba(125,169,138,0.12)] text-[var(--success)]',
+  paused: 'bg-[rgba(214,173,114,0.12)] text-[var(--warning)]',
+  done: 'bg-[rgba(201,155,107,0.12)] text-[var(--accent-strong)]',
+  archived: 'bg-[rgba(255,255,255,0.05)] text-stone-400',
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  active: 'Активен', paused: 'Пауза', done: 'Завершён', archived: 'Архив',
+  active: 'Активен',
+  paused: 'Пауза',
+  done: 'Завершён',
+  archived: 'Архив',
 }
 
 const AUTONOMY_LABEL: Record<string, string> = {
-  free:            '🟢 Полная свобода',
-  stage_approval:  '🟡 Согласование этапов',
-  strict:          '🔴 Жёсткий контроль',
+  free: 'Полная свобода',
+  stage_approval: 'Согласование этапов',
+  strict: 'Жёсткий контроль',
 }
 
 export default function ProjectsPage() {
@@ -47,82 +51,75 @@ export default function ProjectsPage() {
     }
   }
 
-  useEffect(() => { load() }, [tab])
+  useEffect(() => {
+    load()
+  }, [tab])
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Проекты</h1>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
-        >
-          <Plus size={16} /> Новый проект
+    <div className="space-y-6">
+      <header className="page-header">
+        <div>
+          <div className="page-kicker">Project Ledger</div>
+          <h1 className="page-title">Проекты в спокойной, плотной операционной сетке.</h1>
+          <p className="page-subtitle">
+            Каждая карточка показывает только полезный минимум: статус, режим автономности и текущий темп обновлений.
+          </p>
+        </div>
+        <button onClick={() => setShowCreate(true)} className="btn-primary">
+          <Plus size={15} />
+          Новый проект
         </button>
-      </div>
+      </header>
 
-      {/* Вкладки */}
-      <div className="flex gap-1 bg-gray-900 p-1 rounded-lg border border-gray-800 w-fit">
+      <div className="flex flex-wrap gap-2">
         {STATUS_TABS.map(({ key, label }) => (
           <button
             key={String(key)}
             onClick={() => setTab(key)}
-            className={`px-4 py-1.5 rounded-md text-sm transition ${
-              tab === key ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'
-            }`}
+            className={tab === key ? 'btn-primary !py-2 !text-xs !tracking-[0.16em]' : 'btn-secondary !py-2 !text-xs !tracking-[0.16em]'}
           >
             {label}
           </button>
         ))}
       </div>
 
-      {/* Список */}
       {loading ? (
-        <div className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-24 bg-gray-900 rounded-xl border border-gray-800 animate-pulse" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="panel h-40 animate-pulse" />
           ))}
         </div>
       ) : projects.length === 0 ? (
-        <div className="text-center py-20 text-gray-600">
-          <FolderOpen size={40} className="mx-auto mb-3 opacity-30" />
-          <div>Проектов нет</div>
+        <div className="panel px-6 py-20 text-center">
+          <FolderOpen size={38} className="mx-auto text-stone-600" />
+          <div className="mt-4 text-base text-stone-300">Пока нет проектов в этом фильтре.</div>
+          <div className="mt-2 text-sm text-stone-500">Создайте новый поток, чтобы запустить работу команды.</div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-4 xl:grid-cols-2">
           {projects.map((p) => (
-            <Link
-              key={p.id}
-              href={`/projects/${p.id}`}
-              className="block bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition group"
-            >
+            <Link key={p.id} href={`/projects/${p.id}`} className="panel block p-5 transition hover:border-[rgba(226,182,132,0.18)] hover:-translate-y-[1px]">
               <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="text-white font-medium text-base">{p.title}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_BADGE[p.status] ?? 'bg-gray-800 text-gray-400'}`}>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-lg font-medium text-stone-100">{p.title}</span>
+                    <span className={`rounded-full px-2.5 py-1 text-[0.68rem] uppercase tracking-[0.14em] ${STATUS_BADGE[p.status] ?? 'bg-[rgba(255,255,255,0.05)] text-stone-400'}`}>
                       {STATUS_LABEL[p.status] ?? p.status}
                     </span>
                   </div>
-                  {p.description && (
-                    <p className="text-sm text-gray-500 line-clamp-1">{p.description}</p>
-                  )}
-                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
-                    <span>{AUTONOMY_LABEL[p.autonomy_mode] ?? p.autonomy_mode}</span>
-                    <span>·</span>
-                    <span>
-                      {formatDistanceToNow(new Date(p.updated_at), { addSuffix: true, locale: ru })}
-                    </span>
+                  {p.description && <p className="mt-3 line-clamp-2 text-sm leading-6 text-stone-400">{p.description}</p>}
+                  <div className="mt-4 flex flex-wrap gap-3 text-xs text-stone-500">
+                    <span className="pill pill-neutral">{AUTONOMY_LABEL[p.autonomy_mode] ?? p.autonomy_mode}</span>
+                    <span>{formatDistanceToNow(new Date(p.updated_at), { addSuffix: true, locale: ru })}</span>
                   </div>
                 </div>
-                <ChevronRight size={18} className="text-gray-700 group-hover:text-gray-400 transition mt-1 shrink-0" />
+                <ChevronRight size={18} className="mt-1 shrink-0 text-stone-600" />
               </div>
             </Link>
           ))}
         </div>
       )}
 
-      {/* Модалка создания */}
       {showCreate && <CreateProjectModal onClose={() => setShowCreate(false)} onCreated={load} />}
     </div>
   )
@@ -143,7 +140,10 @@ function CreateProjectModal({ onClose, onCreated }: any) {
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   const submit = async () => {
-    if (!form.title.trim()) { setError('Введите название'); return }
+    if (!form.title.trim()) {
+      setError('Введите название')
+      return
+    }
     setLoading(true)
     try {
       await projectsApi.create(form)
@@ -157,38 +157,34 @@ function CreateProjectModal({ onClose, onCreated }: any) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-lg p-6">
-        <h2 className="text-lg font-bold text-white mb-5">Новый проект</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4 py-6 backdrop-blur-md">
+      <div className="panel w-full max-w-2xl p-6">
+        <div className="page-kicker">Create Project</div>
+        <h2 className="mt-2 text-2xl font-semibold text-stone-100">Новый проект</h2>
 
-        <div className="space-y-4">
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
           <Field label="Название *" value={form.title} onChange={(v: string) => set('title', v)} />
-          <Field label="Описание" value={form.description} onChange={(v: string) => set('description', v)} textarea />
           <Field label="Цель проекта" value={form.goal} onChange={(v: string) => set('goal', v)} />
           <Field label="Целевая аудитория" value={form.target_audience} onChange={(v: string) => set('target_audience', v)} />
           <Field label="Модель монетизации" value={form.monetization_model} onChange={(v: string) => set('monetization_model', v)} />
-
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Режим автономности</label>
-            <select
-              value={form.autonomy_mode}
-              onChange={(e) => set('autonomy_mode', e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500"
-            >
-              <option value="free">🟢 Полная свобода</option>
-              <option value="stage_approval">🟡 Согласование этапов</option>
-              <option value="strict">🔴 Жёсткий контроль</option>
+          <div className="md:col-span-2">
+            <Field label="Описание" value={form.description} onChange={(v: string) => set('description', v)} textarea />
+          </div>
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm text-stone-400">Режим автономности</label>
+            <select value={form.autonomy_mode} onChange={(e) => set('autonomy_mode', e.target.value)} className="input-base">
+              <option value="free">Полная свобода</option>
+              <option value="stage_approval">Согласование этапов</option>
+              <option value="strict">Жёсткий контроль</option>
             </select>
           </div>
         </div>
 
-        {error && <div className="mt-3 text-red-400 text-sm">{error}</div>}
+        {error && <div className="mt-4 rounded-2xl border border-[rgba(215,122,109,0.2)] bg-[rgba(215,122,109,0.08)] px-4 py-3 text-sm text-[var(--danger)]">{error}</div>}
 
-        <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg py-2 text-sm transition">
-            Отмена
-          </button>
-          <button onClick={submit} disabled={loading} className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg py-2 text-sm font-medium transition">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <button onClick={onClose} className="btn-secondary flex-1">Отмена</button>
+          <button onClick={submit} disabled={loading} className="btn-primary flex-1">
             {loading ? 'Создаём...' : 'Создать'}
           </button>
         </div>
@@ -198,14 +194,14 @@ function CreateProjectModal({ onClose, onCreated }: any) {
 }
 
 function Field({ label, value, onChange, textarea }: any) {
-  const cls = "w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition"
   return (
     <div>
-      <label className="block text-sm text-gray-400 mb-1">{label}</label>
-      {textarea
-        ? <textarea rows={2} value={value} onChange={(e) => onChange(e.target.value)} className={cls} />
-        : <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className={cls} />
-      }
+      <label className="mb-2 block text-sm text-stone-400">{label}</label>
+      {textarea ? (
+        <textarea rows={3} value={value} onChange={(e) => onChange(e.target.value)} className="input-base resize-none" />
+      ) : (
+        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="input-base" />
+      )}
     </div>
   )
 }

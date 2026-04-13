@@ -1,4 +1,5 @@
 'use client'
+
 import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
@@ -20,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   if (pathname === '/login') {
     return (
       <html lang="ru">
-        <body className="bg-gray-950 text-gray-100 min-h-screen">{children}</body>
+        <body>{children}</body>
       </html>
     )
   }
@@ -29,9 +30,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="ru">
-      <body className="bg-gray-950 text-gray-100 min-h-screen flex">
-        <Sidebar />
-        <main className="flex-1 ml-56 p-6 overflow-auto">{children}</main>
+      <body>
+        <div className="app-shell md:flex">
+          <Sidebar />
+          <main className="app-main md:ml-[18.5rem]">
+            <div className="page-shell">{children}</div>
+          </main>
+        </div>
       </body>
     </html>
   )
