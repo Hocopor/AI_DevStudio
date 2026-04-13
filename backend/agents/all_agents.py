@@ -7,6 +7,19 @@ from models import Task
 from agents.base_agent import BaseAgent
 
 
+def _render_report_value(value, limit: int = 2000) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        text = value
+    else:
+        try:
+            text = json.dumps(value, ensure_ascii=False, indent=2)
+        except Exception:
+            text = str(value)
+    return text[:limit]
+
+
 # ─────────────────────────────────────────────────────────────
 # ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: универсальный executor
 # ─────────────────────────────────────────────────────────────
@@ -50,13 +63,13 @@ async def _generic_execute(agent: BaseAgent, task: Task, role_instruction: str =
 
     # Отчёт
     report = f"✅ **{agent.name} — задача выполнена**\n\n"
-    report += f"**Что сделано:** {result.get('summary', '')}\n\n"
+    report += f"**Что сделано:** {_render_report_value(result.get('summary'), 1200)}\n\n"
     if result.get("result"):
-        report += f"**Результат:**\n{result['result'][:2000]}\n\n"
+        report += f"**Результат:**\n{_render_report_value(result['result'])}\n\n"
     if result.get("files"):
         report += f"**Файлы:** {', '.join(result['files'].keys())}\n"
     if result.get("notes"):
-        report += f"**Заметки:** {result['notes']}"
+        report += f"**Заметки:** {_render_report_value(result['notes'], 1200)}"
     await agent.comment(task.id, report)
 
     # Попробовать создать Skill
