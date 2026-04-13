@@ -12,9 +12,10 @@ security = HTTPBearer(auto_error=False)
 
 def verify_password(plain_password: str) -> bool:
     """Проверяет пароль против хэша из .env"""
+    password_hash = settings.admin_password_hash.replace("$$", "$")
     return bcrypt.checkpw(
         plain_password.encode("utf-8"),
-        settings.admin_password_hash.encode("utf-8"),
+        password_hash.encode("utf-8"),
     )
 
 
