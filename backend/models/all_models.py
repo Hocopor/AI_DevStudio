@@ -85,6 +85,23 @@ class TaskComment(Base):
     task: Mapped["Task"] = relationship("Task", back_populates="comments")
 
 
+class AgentTaskMemory(Base):
+    __tablename__ = "agent_task_memory"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    agent_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    task_id: Mapped[str] = mapped_column(String(36), ForeignKey("tasks.id", ondelete="CASCADE"))
+    project_id: Mapped[Optional[str]] = mapped_column(String(36))
+    summary: Mapped[str] = mapped_column(Text, default="")
+    key_points: Mapped[list] = mapped_column(JSONB, default=list)
+    last_owner_reply: Mapped[Optional[str]] = mapped_column(Text)
+    last_agent_question: Mapped[Optional[str]] = mapped_column(Text)
+    raw_context_chars: Mapped[int] = mapped_column(Integer, default=0)
+    compressed_context_chars: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
 # ──────────────────────────────────────────────
 # AGENTS
 # ──────────────────────────────────────────────

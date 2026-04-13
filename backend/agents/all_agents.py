@@ -17,7 +17,7 @@ async def _generic_execute(agent: BaseAgent, task: Task, role_instruction: str =
     LLM выполняет задачу, результат сохраняется в MinIO и фиксируется в комментарии.
     """
     system = await agent.get_full_system_prompt()
-    context = await agent.build_task_context(task)
+    context = await agent.build_task_context(task, max_output_tokens=4096)
     messages = [
         {"role": "system", "content": system},
         {"role": "user", "content": (
@@ -560,7 +560,7 @@ class DirectorAgent(BaseAgent):
 
     async def _analyze_task(self, task: Task) -> dict:
         system = await self.get_full_system_prompt()
-        context = await self.build_task_context(task)
+        context = await self.build_task_context(task, max_output_tokens=3000)
         messages = [
             {"role": "system", "content": system},
             {"role": "user", "content": (

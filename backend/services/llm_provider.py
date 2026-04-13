@@ -18,6 +18,10 @@ class ProviderError(Exception):
     pass
 
 
+def _estimate_message_tokens(messages: list[dict]) -> int:
+    return sum(max(1, len((message.get("content") or "")) // 4) for message in messages)
+
+
 # ── DeepSeek ─────────────────────────────────────────────────
 
 async def _call_deepseek(
@@ -29,11 +33,36 @@ async def _call_deepseek(
     from openai import AsyncOpenAI, RateLimitError
     client = AsyncOpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     try:
-        resp = await client.chat.completions.create(
-            model=model, messages=messages, max_tokens=max_tokens, temperature=0.7,
-        )
-        content = resp.choices[0].message.content or ""
-        return content, resp.usage.prompt_tokens, resp.usage.completion_tokens
+        total_tokens_in = 0
+        total_tokens_out = 0
+        aggregated_content: list[str] = []
+        conversation = list(messages)
+
+        for _ in range(6):
+            resp = await client.chat.completions.create(
+                model=model, messages=conversation, max_tokens=max_tokens, temperature=0.7,
+            )
+            content = resp.choices[0].message.content or ""
+            finish_reason = resp.choices[0].finish_reason or "stop"
+
+            aggregated_content.append(content)
+            total_tokens_in += resp.usage.prompt_tokens
+            total_tokens_out += resp.usage.completion_tokens
+
+            if finish_reason != "length":
+                return "\n".join(part for part in aggregated_content if part).strip(), total_tokens_in, total_tokens_out
+
+            conversation.append({"role": "assistant", "content": content})
+            conversation.append({
+                "role": "user",
+                "content": (
+                    "CONTINUE. Продолжи строго с места остановки. "
+                    "Не повторяй уже выданный текст, не начинай сначала и не добавляй вводные."
+                ),
+            })
+
+        logger.warning("DeepSeek continuation rounds exhausted; returning partial aggregated response.")
+        return "\n".join(part for part in aggregated_content if part).strip(), total_tokens_in, total_tokens_out
     except RateLimitError:
         raise LimitExceeded("DeepSeek rate limit")
     except Exception as e:
@@ -215,6 +244,7 @@ async def call_llm(
     start = time.time()
     content = ""
     tokens_in = tokens_out = 0
+    approx_input_tokens = _estimate_message_tokens(messages)
 
     try:
         if provider == "deepseek":
@@ -237,7 +267,9 @@ async def call_llm(
         raise
     finally:
         elapsed = round(time.time() - start, 2)
-        logger.debug(f"[{agent_id}] {provider}/{model} | {tokens_in}+{tokens_out} tok | {elapsed}s")
+        logger.debug(
+            f"[{agent_id}] {provider}/{model} | approx_in {approx_input_tokens} | actual {tokens_in}+{tokens_out} tok | {elapsed}s"
+        )
 
     # Логируем использование
     await _log_usage(agent_id, provider, model, tokens_in, tokens_out, task_id)
