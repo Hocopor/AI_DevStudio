@@ -14,3 +14,4 @@ minio_data/
 postgres_data/
 redis_data/
 startdannye/
+docs/logs.md

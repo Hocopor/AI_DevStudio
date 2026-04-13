@@ -1,8 +1,18 @@
 import asyncio
+import sys
+from pathlib import Path
 from celery import Celery
 from celery.schedules import crontab
 from core.config import settings
 from loguru import logger
+
+
+# Celery worker/beat may start from a process cwd that does not include /app.
+# Add the backend root explicitly so dynamic imports of sibling packages
+# like `agents`, `core`, `models`, and `services` work reliably.
+APP_ROOT = Path(__file__).resolve().parent.parent
+if str(APP_ROOT) not in sys.path:
+    sys.path.insert(0, str(APP_ROOT))
 
 celery_app = Celery(
     "devstudio",
