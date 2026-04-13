@@ -8,6 +8,7 @@ if str(APP_ROOT) not in sys.path:
 
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import worker_process_init, worker_process_shutdown
 from core.config import settings
 from loguru import logger
 
@@ -48,13 +49,43 @@ celery_app.conf.beat_schedule = {
 }
 
 
+_worker_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _get_worker_loop() -> asyncio.AbstractEventLoop:
+    global _worker_loop
+
+    if _worker_loop is None or _worker_loop.is_closed():
+        _worker_loop = asyncio.new_event_loop()
+
+    asyncio.set_event_loop(_worker_loop)
+    return _worker_loop
+
+
 def _run_async(coro):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    loop = _get_worker_loop()
+    return loop.run_until_complete(coro)
+
+
+@worker_process_init.connect
+def _init_worker_loop(**_kwargs):
+    _get_worker_loop()
+
+
+@worker_process_shutdown.connect
+def _shutdown_worker_loop(**_kwargs):
+    global _worker_loop
+
+    if _worker_loop is None or _worker_loop.is_closed():
+        return
+
     try:
-        return loop.run_until_complete(coro)
+        _worker_loop.run_until_complete(_worker_loop.shutdown_asyncgens())
+    except Exception as exc:
+        logger.warning(f"Не удалось корректно завершить async generators: {exc}")
     finally:
-        loop.close()
+        _worker_loop.close()
+        _worker_loop = None
 
 
 def _get_agent(agent_id: str):
