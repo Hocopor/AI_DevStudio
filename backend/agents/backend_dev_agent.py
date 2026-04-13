@@ -1,7 +1,7 @@
 import json
 import httpx
 from models import Task
-from base_agent import BaseAgent
+from agents.base_agent import BaseAgent
 from services.minio_service import save_agent_artifact
 from loguru import logger
 

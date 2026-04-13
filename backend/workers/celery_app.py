@@ -1,33 +1,15 @@
 import asyncio
 import sys
 from pathlib import Path
+
+APP_ROOT = Path(__file__).resolve().parent.parent
+if str(APP_ROOT) not in sys.path:
+    sys.path.insert(0, str(APP_ROOT))
+
 from celery import Celery
 from celery.schedules import crontab
 from core.config import settings
 from loguru import logger
-
-
-# Celery worker/beat may start from a process cwd that does not include /app.
-# Add the backend root explicitly so dynamic imports of sibling packages
-# like `agents`, `core`, `models`, and `services` work reliably.
-APP_ROOT = Path(__file__).resolve().parent.parent
-if str(APP_ROOT) not in sys.path:
-    sys.path.insert(0, str(APP_ROOT))
-AGENTS_ROOT = APP_ROOT / "agents"
-if str(AGENTS_ROOT) not in sys.path:
-    sys.path.insert(0, str(AGENTS_ROOT))
-MODELS_ROOT = APP_ROOT / "models"
-if str(MODELS_ROOT) not in sys.path:
-    sys.path.insert(0, str(MODELS_ROOT))
-CORE_ROOT = APP_ROOT / "core"
-if str(CORE_ROOT) not in sys.path:
-    sys.path.insert(0, str(CORE_ROOT))
-SERVICES_ROOT = APP_ROOT / "services"
-if str(SERVICES_ROOT) not in sys.path:
-    sys.path.insert(0, str(SERVICES_ROOT))
-SCHEMAS_ROOT = APP_ROOT / "schemas"
-if str(SCHEMAS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SCHEMAS_ROOT))
 
 celery_app = Celery(
     "devstudio",
@@ -76,8 +58,8 @@ def _run_async(coro):
 
 
 def _get_agent(agent_id: str):
-    from backend_dev_agent import BackendDevAgent
-    from all_agents import (
+    from agents.backend_dev_agent import BackendDevAgent
+    from agents.all_agents import (
         DirectorAgent, MarketAnalystAgent, ProductManagerAgent,
         FrontendDevAgent, UXUIAgent, QAAgent, DevOpsAgent,
         MarketerAgent, CopywriterAgent, SMMAgent, SEOAgent, FinanceAgent,
