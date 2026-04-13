@@ -7,9 +7,20 @@ from models import Task, TaskComment
 from schemas import TaskCreate, TaskUpdate, TaskOut, TaskCommentCreate, TaskCommentOut
 from services.ws_manager import ws_manager
 from services.notification_service import notify
+import json
 import uuid
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+
+
+async def _publish_event(event: dict):
+    try:
+        from core.redis import get_redis
+
+        redis = await get_redis()
+        await redis.publish("task_events", json.dumps(event, ensure_ascii=False))
+    except Exception:
+        pass
 
 
 @router.get("", response_model=list[TaskOut])
@@ -55,6 +66,15 @@ async def create_task(
         "assigned_to": task.assigned_to,
         "project_id": task.project_id,
     })
+    if task.assigned_to:
+        await _publish_event(
+            {
+                "event": "task_assigned",
+                "task_id": task.id,
+                "assigned_to": task.assigned_to,
+                "project_id": task.project_id,
+            }
+        )
     return task
 
 
@@ -82,6 +102,7 @@ async def update_task(
         raise HTTPException(status_code=404, detail="Задача не найдена")
 
     old_status = task.status
+    old_assigned_to = task.assigned_to
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(task, field, value)
 
@@ -109,6 +130,26 @@ async def update_task(
                 task_id=task_id,
                 project_id=task.project_id,
             )
+
+        if old_status == "awaiting_approval" and task.status in {"todo", "in_progress"}:
+            await _publish_event(
+                {
+                    "event": "approval_given",
+                    "task_id": task.id,
+                    "assigned_to": task.assigned_to,
+                    "project_id": task.project_id,
+                }
+            )
+
+    if body.assigned_to and body.assigned_to != old_assigned_to:
+        await _publish_event(
+            {
+                "event": "task_assigned",
+                "task_id": task.id,
+                "assigned_to": task.assigned_to,
+                "project_id": task.project_id,
+            }
+        )
 
     return task
 
@@ -161,6 +202,15 @@ async def add_comment(
         "author": comment.author,
         "project_id": task.project_id,
     })
+    await _publish_event(
+        {
+            "event": "comment_added",
+            "task_id": task_id,
+            "assigned_to": task.assigned_to,
+            "author": comment.author,
+            "project_id": task.project_id,
+        }
+    )
 
     if owner_replied_to_approval:
         await ws_manager.broadcast({
@@ -170,5 +220,13 @@ async def add_comment(
             "new_status": task.status,
             "project_id": task.project_id,
         })
+        await _publish_event(
+            {
+                "event": "approval_given",
+                "task_id": task.id,
+                "assigned_to": task.assigned_to,
+                "project_id": task.project_id,
+            }
+        )
 
     return comment
