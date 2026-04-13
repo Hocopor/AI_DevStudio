@@ -1,5 +1,6 @@
 'use client'
 
+import './globals.css'
 import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
