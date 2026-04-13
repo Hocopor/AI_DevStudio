@@ -60,7 +60,7 @@ class BackendDevAgent(BaseAgent):
     ]
 
     @property
-    def system_prompt(self) -> str:
+    def base_system_prompt(self) -> str:
         return BACKEND_DEV_SYSTEM_PROMPT
 
     async def execute(self, task: Task) -> None:
@@ -98,7 +98,7 @@ class BackendDevAgent(BaseAgent):
     async def _implement(self, task: Task) -> dict:
         """Реализовать задачу через LLM"""
         messages = [
-            {"role": "system", "content": self.system_prompt},
+            {"role": "system", "content": await self.get_full_system_prompt()},
             {
                 "role": "user",
                 "content": (

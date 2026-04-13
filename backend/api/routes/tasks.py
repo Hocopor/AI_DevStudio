@@ -40,7 +40,10 @@ async def create_task(
     db: AsyncSession = Depends(get_db),
     _: str = Depends(get_current_user),
 ):
-    task = Task(id=str(uuid.uuid4()), **body.model_dump())
+    payload = body.model_dump()
+    if payload.get("assigned_to") and not payload.get("status"):
+        payload["status"] = "todo"
+    task = Task(id=str(uuid.uuid4()), **payload)
     db.add(task)
     await db.commit()
     await db.refresh(task)

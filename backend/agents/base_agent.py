@@ -56,7 +56,10 @@ class BaseAgent(ABC):
         async with AsyncSessionLocal() as db:
             result = await db.execute(
                 select(Task)
-                .where(Task.assigned_to == self.agent_id, Task.status == "todo")
+                .where(
+                    Task.assigned_to == self.agent_id,
+                    Task.status.in_(("todo", "backlog")),
+                )
                 .order_by(Task.priority.desc(), Task.created_at.asc())
             )
             return result.scalars().all()

@@ -80,6 +80,7 @@ class TaskCreate(BaseModel):
     parent_task_id: Optional[str] = None
     title: str
     description: Optional[str] = None
+    status: Optional[str] = None
     priority: str = "medium"
     assigned_to: Optional[str] = None
     created_by: Optional[str] = "owner"
