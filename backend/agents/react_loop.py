@@ -5,12 +5,19 @@ from __future__ import annotations
 
 import traceback
 from typing import Optional
+from dataclasses import dataclass
 
 from loguru import logger
 
 from agents.context import AgentContext
 from agents.tools.registry import ToolResult, execute_tool, get_tools_for_agent, validate_tool_call
 from core.config import settings
+
+
+@dataclass
+class ReActRunResult:
+    result: str
+    terminal_reason: str
 
 
 class ReActEngine:
@@ -20,7 +27,7 @@ class ReActEngine:
         self.agent_id = agent_id
         self.max_steps = settings.agent_max_steps
 
-    async def run(self, ctx: AgentContext) -> str:
+    async def run(self, ctx: AgentContext) -> ReActRunResult:
         logger.info(
             f"[{self.agent_id}] ReAct loop start | task={ctx.task_id[:8]} | max_steps={self.max_steps or 'inf'}"
         )
@@ -31,40 +38,57 @@ class ReActEngine:
         while True:
             if self.max_steps > 0 and step >= self.max_steps:
                 logger.warning(f"[{self.agent_id}] Step limit reached: {self.max_steps}")
-                return await self._handle_step_limit(ctx, step)
+                summary = await self._handle_step_limit(ctx, step)
+                return ReActRunResult(result=summary, terminal_reason="step_limit")
 
             llm_response = await self._think(ctx)
             if llm_response is None:
-                return "LLM did not return a valid response."
+                return ReActRunResult(result="LLM did not return a valid response.", terminal_reason="llm_error")
 
             if llm_response.get("type") == "text":
-                return llm_response.get("content", "")
+                return ReActRunResult(result=llm_response.get("content", ""), terminal_reason="text_response")
 
             if llm_response.get("type") != "tool_call":
-                return f"Unexpected LLM response format: {llm_response}"
+                return ReActRunResult(
+                    result=f"Unexpected LLM response format: {llm_response}",
+                    terminal_reason="llm_error",
+                )
 
             tool_name = llm_response["tool_name"]
             tool_args = llm_response.get("tool_args", {})
             thought = llm_response.get("thought", "")
 
             if tool_name == "mark_task_done":
-                return tool_args.get("result", "Task completed.")
+                return ReActRunResult(
+                    result=tool_args.get("result", "Task completed."),
+                    terminal_reason="completed",
+                )
 
             validated = validate_tool_call(tool_name, tool_args, self.agent_id)
             if not validated.ok:
                 invalid_retries += 1
+                validation_error = validated.error
+                if tool_name == "write_file" and "Missing required param: filename" in validation_error:
+                    validation_error += (
+                        ". When calling write_file you must include both `filename` and `content`. "
+                        "Use a real filename with extension, for example `brief.md`, `landing-copy.md`, "
+                        "`api-spec.yaml`, or `deployment-checklist.md`."
+                    )
                 ctx.add_step(
                     step_num=step,
                     thought=thought,
                     tool_name=tool_name,
                     tool_args=tool_args,
-                    tool_result=f"Validation error: {validated.error}",
+                    tool_result=f"Validation error: {validation_error}",
                     ok=False,
                 )
                 if invalid_retries >= self.MAX_RETRIES_ON_INVALID_TOOL:
-                    return (
-                        f"Agent could not select a valid tool after {invalid_retries} attempts: "
-                        f"{validated.error}"
+                    return ReActRunResult(
+                        result=(
+                            f"Agent could not select a valid tool after {invalid_retries} attempts: "
+                            f"{validation_error}"
+                        ),
+                        terminal_reason="invalid_tool_retries",
                     )
                 continue
 

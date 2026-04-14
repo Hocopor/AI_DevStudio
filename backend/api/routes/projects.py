@@ -86,6 +86,36 @@ async def archive_project(
     await db.commit()
 
 
+@router.post("/{project_id}/start", response_model=ProjectOut)
+async def start_project(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_user),
+):
+    project = await db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+    project.status = "active"
+    await db.commit()
+    await db.refresh(project)
+    return project
+
+
+@router.post("/{project_id}/pause", response_model=ProjectOut)
+async def pause_project(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_user),
+):
+    project = await db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+    project.status = "paused"
+    await db.commit()
+    await db.refresh(project)
+    return project
+
+
 @router.get("/{project_id}/stats")
 async def project_stats(
     project_id: str,

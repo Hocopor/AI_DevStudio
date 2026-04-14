@@ -9,11 +9,31 @@ from agents.tools.registry import ToolParam, ToolResult, tool
 
 @tool(
     name="write_file",
-    description="Save a generated artifact to project storage.",
+    description=(
+        "Save a durable project artifact to storage. "
+        "You MUST provide `filename` and `content`. "
+        "Always include a filename with an extension, for example: `brief.md`, `landing-copy.md`, "
+        "`api-spec.yaml`, `deployment-checklist.md`, `result.json`, `wireframe.html`."
+    ),
     params=[
-        ToolParam("filename", "string", "Artifact filename with extension.", required=True),
-        ToolParam("content", "string", "Artifact content.", required=True),
-        ToolParam("description", "string", "Short artifact description.", required=False),
+        ToolParam(
+            "filename",
+            "string",
+            "Required. Filename with extension only, for example `brief.md` or `api-spec.yaml`.",
+            required=True,
+        ),
+        ToolParam(
+            "content",
+            "string",
+            "Required. Full file content to save under the filename.",
+            required=True,
+        ),
+        ToolParam(
+            "description",
+            "string",
+            "Optional short explanation of what this file contains and why it matters.",
+            required=False,
+        ),
     ],
 )
 async def write_file(filename: str, content: str, ctx, description: str = "") -> ToolResult:

@@ -13,7 +13,7 @@ from loguru import logger
 from sqlalchemy import select, update
 
 from agents.context import AgentContext, build_context, get_pcd, save_pcd
-from agents.react_loop import ReActEngine
+from agents.react_loop import ReActEngine, ReActRunResult
 import agents.tools  # noqa: F401
 from core.database import AsyncSessionLocal
 from models import Agent, AgentTaskMemory, Project, Task, TaskComment
@@ -533,11 +533,14 @@ class BaseAgent(ABC):
             )
 
             engine = ReActEngine(self.agent_id)
-            result = await engine.run(ctx)
+            run_result = await engine.run(ctx)
+            result = run_result.result
 
             task_after = await self._reload_task(task.id)
-            if task_after and task_after.status == "in_progress":
+            if task_after and run_result.terminal_reason == "completed" and task_after.status == "in_progress":
                 await self._finalize_task(task_after, result, ctx)
+            elif task_after and run_result.terminal_reason == "invalid_tool_retries":
+                await self._handle_invalid_tool_retries(task_after, result)
             elif task_after and task_after.status == "awaiting_approval":
                 if task_after.project_id:
                     pcd = await get_pcd(task_after.project_id)
@@ -548,6 +551,37 @@ class BaseAgent(ABC):
                 await self._set_agent_idle()
         except Exception as exc:
             await self._handle_task_error(task, exc)
+
+    async def _handle_invalid_tool_retries(self, task: Task, result: str):
+        summary = (
+            f"{self.name} не смог корректно завершить шаг из-за ошибки вызова инструмента.\n\n"
+            f"{result}\n\n"
+            "Задача возвращена в согласование. Проверьте комментарий агента и при необходимости дайте уточнение."
+        )
+        await self._set_status(task.id, "awaiting_approval")
+        await self.comment(
+            task.id,
+            "Ошибка tool-calling. Не удалось корректно сформировать вызов инструмента после нескольких попыток.\n\n"
+            f"{result}",
+        )
+        async with AsyncSessionLocal() as db:
+            await notify(
+                db=db,
+                type="system_error",
+                priority="high",
+                title=f"{self.name} требует внимания по задаче",
+                body=summary,
+                task_id=task.id,
+                project_id=task.project_id,
+            )
+
+        if task.project_id:
+            pcd = await get_pcd(task.project_id)
+            pcd.set_idle(self.agent_id)
+            pcd.add_event(f"{self.name} paused on invalid tool call: {task.title[:60]}")
+            await save_pcd(pcd)
+
+        await self._set_agent_idle()
 
     async def run(self):
         tasks = await self.get_pending_tasks()

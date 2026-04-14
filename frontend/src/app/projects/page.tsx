@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ChevronRight, FolderOpen, Plus } from 'lucide-react'
+import { ChevronRight, FolderOpen, Pause, Play, Plus, Trash2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ru } from 'date-fns/locale'
+
 import { projectsApi } from '@/lib/api'
 
 const STATUS_TABS = [
@@ -39,6 +40,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<any[]>([])
   const [tab, setTab] = useState<string | undefined>('active')
   const [loading, setLoading] = useState(true)
+  const [busyProjectId, setBusyProjectId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
 
   const load = async () => {
@@ -55,6 +57,18 @@ export default function ProjectsPage() {
     load()
   }, [tab])
 
+  const runAction = async (projectId: string, action: 'start' | 'pause' | 'delete') => {
+    setBusyProjectId(projectId)
+    try {
+      if (action === 'start') await projectsApi.start(projectId)
+      if (action === 'pause') await projectsApi.pause(projectId)
+      if (action === 'delete') await projectsApi.delete(projectId)
+      await load()
+    } finally {
+      setBusyProjectId(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <header className="page-header">
@@ -62,7 +76,7 @@ export default function ProjectsPage() {
           <div className="page-kicker">Project Ledger</div>
           <h1 className="page-title">Проекты в спокойной, плотной операционной сетке.</h1>
           <p className="page-subtitle">
-            Каждая карточка показывает только полезный минимум: статус, режим автономности и текущий темп обновлений.
+            Каждая карточка показывает полезный минимум: статус, режим автономности, свежесть обновлений и быстрые действия по управлению.
           </p>
         </div>
         <button onClick={() => setShowCreate(true)} className="btn-primary">
@@ -86,7 +100,7 @@ export default function ProjectsPage() {
       {loading ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="panel h-40 animate-pulse" />
+            <div key={i} className="panel h-44 animate-pulse" />
           ))}
         </div>
       ) : projects.length === 0 ? (
@@ -97,30 +111,71 @@ export default function ProjectsPage() {
         </div>
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
-          {projects.map((p) => (
-            <Link key={p.id} href={`/projects/${p.id}`} className="panel block p-5 transition hover:border-[rgba(226,182,132,0.18)] hover:-translate-y-[1px]">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-lg font-medium text-stone-100">{p.title}</span>
-                    <span className={`rounded-full px-2.5 py-1 text-[0.68rem] uppercase tracking-[0.14em] ${STATUS_BADGE[p.status] ?? 'bg-[rgba(255,255,255,0.05)] text-stone-400'}`}>
-                      {STATUS_LABEL[p.status] ?? p.status}
-                    </span>
-                  </div>
-                  {p.description && <p className="mt-3 line-clamp-2 text-sm leading-6 text-stone-400">{p.description}</p>}
-                  <div className="mt-4 flex flex-wrap gap-3 text-xs text-stone-500">
-                    <span className="pill pill-neutral">{AUTONOMY_LABEL[p.autonomy_mode] ?? p.autonomy_mode}</span>
-                    <span>{formatDistanceToNow(new Date(p.updated_at), { addSuffix: true, locale: ru })}</span>
-                  </div>
-                </div>
-                <ChevronRight size={18} className="mt-1 shrink-0 text-stone-600" />
-              </div>
-            </Link>
+          {projects.map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              busy={busyProjectId === project.id}
+              onAction={runAction}
+            />
           ))}
         </div>
       )}
 
       {showCreate && <CreateProjectModal onClose={() => setShowCreate(false)} onCreated={load} />}
+    </div>
+  )
+}
+
+function ProjectCard({ project, busy, onAction }: any) {
+  return (
+    <div className="panel p-5 transition hover:border-[rgba(226,182,132,0.18)] hover:-translate-y-[1px]">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-lg font-medium text-stone-100">{project.title}</span>
+            <span className={`rounded-full px-2.5 py-1 text-[0.68rem] uppercase tracking-[0.14em] ${STATUS_BADGE[project.status] ?? 'bg-[rgba(255,255,255,0.05)] text-stone-400'}`}>
+              {STATUS_LABEL[project.status] ?? project.status}
+            </span>
+          </div>
+          {project.description && <p className="mt-3 line-clamp-2 text-sm leading-6 text-stone-400">{project.description}</p>}
+          <div className="mt-4 flex flex-wrap gap-3 text-xs text-stone-500">
+            <span className="pill pill-neutral">{AUTONOMY_LABEL[project.autonomy_mode] ?? project.autonomy_mode}</span>
+            <span>{formatDistanceToNow(new Date(project.updated_at), { addSuffix: true, locale: ru })}</span>
+          </div>
+        </div>
+
+        <Link href={`/projects/${project.id}`} className="mt-1 shrink-0 text-stone-600 hover:text-stone-300 transition">
+          <ChevronRight size={18} />
+        </Link>
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button
+          onClick={() => onAction(project.id, 'start')}
+          disabled={busy || project.status === 'active'}
+          className="btn-secondary !py-2 !px-3 text-xs disabled:opacity-40"
+        >
+          <Play size={14} />
+          Старт
+        </button>
+        <button
+          onClick={() => onAction(project.id, 'pause')}
+          disabled={busy || project.status === 'paused' || project.status === 'archived'}
+          className="btn-secondary !py-2 !px-3 text-xs disabled:opacity-40"
+        >
+          <Pause size={14} />
+          Пауза
+        </button>
+        <button
+          onClick={() => onAction(project.id, 'delete')}
+          disabled={busy || project.status === 'archived'}
+          className="btn-secondary !py-2 !px-3 text-xs text-rose-200 disabled:opacity-40"
+        >
+          <Trash2 size={14} />
+          Удалить
+        </button>
+      </div>
     </div>
   )
 }
@@ -134,74 +189,51 @@ function CreateProjectModal({ onClose, onCreated }: any) {
     monetization_model: '',
     autonomy_mode: 'stage_approval',
   })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
+  const [saving, setSaving] = useState(false)
 
   const submit = async () => {
-    if (!form.title.trim()) {
-      setError('Введите название')
-      return
-    }
-    setLoading(true)
+    if (!form.title.trim()) return
+    setSaving(true)
     try {
       await projectsApi.create(form)
       onCreated()
       onClose()
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Ошибка создания')
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4 py-6 backdrop-blur-md">
-      <div className="panel w-full max-w-2xl p-6">
-        <div className="page-kicker">Create Project</div>
-        <h2 className="mt-2 text-2xl font-semibold text-stone-100">Новый проект</h2>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <Field label="Название *" value={form.title} onChange={(v: string) => set('title', v)} />
-          <Field label="Цель проекта" value={form.goal} onChange={(v: string) => set('goal', v)} />
-          <Field label="Целевая аудитория" value={form.target_audience} onChange={(v: string) => set('target_audience', v)} />
-          <Field label="Модель монетизации" value={form.monetization_model} onChange={(v: string) => set('monetization_model', v)} />
-          <div className="md:col-span-2">
-            <Field label="Описание" value={form.description} onChange={(v: string) => set('description', v)} textarea />
+    <div className="fixed inset-0 z-50 bg-[rgba(8,8,8,0.72)] backdrop-blur-sm flex items-center justify-center px-4">
+      <div className="panel w-full max-w-2xl p-6 space-y-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="page-kicker">Create Project</div>
+            <h2 className="text-xl font-semibold text-white mt-1">Новый проект</h2>
           </div>
-          <div className="md:col-span-2">
-            <label className="mb-2 block text-sm text-stone-400">Режим автономности</label>
-            <select value={form.autonomy_mode} onChange={(e) => set('autonomy_mode', e.target.value)} className="input-base">
-              <option value="free">Полная свобода</option>
-              <option value="stage_approval">Согласование этапов</option>
-              <option value="strict">Жёсткий контроль</option>
-            </select>
-          </div>
+          <button onClick={onClose} className="text-stone-500 hover:text-stone-300 transition">Закрыть</button>
         </div>
 
-        {error && <div className="mt-4 rounded-2xl border border-[rgba(215,122,109,0.2)] bg-[rgba(215,122,109,0.08)] px-4 py-3 text-sm text-[var(--danger)]">{error}</div>}
+        <div className="grid gap-4">
+          <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Название проекта" className="input-base" />
+          <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Описание" className="input-base min-h-28" />
+          <input value={form.goal} onChange={(e) => setForm((f) => ({ ...f, goal: e.target.value }))} placeholder="Цель" className="input-base" />
+          <input value={form.target_audience} onChange={(e) => setForm((f) => ({ ...f, target_audience: e.target.value }))} placeholder="Целевая аудитория" className="input-base" />
+          <input value={form.monetization_model} onChange={(e) => setForm((f) => ({ ...f, monetization_model: e.target.value }))} placeholder="Монетизация" className="input-base" />
+          <select value={form.autonomy_mode} onChange={(e) => setForm((f) => ({ ...f, autonomy_mode: e.target.value }))} className="input-base">
+            <option value="free">Полная свобода</option>
+            <option value="stage_approval">Согласование этапов</option>
+            <option value="strict">Жёсткий контроль</option>
+          </select>
+        </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <button onClick={onClose} className="btn-secondary flex-1">Отмена</button>
-          <button onClick={submit} disabled={loading} className="btn-primary flex-1">
-            {loading ? 'Создаём...' : 'Создать'}
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="btn-secondary">Отмена</button>
+          <button onClick={submit} disabled={saving || !form.title.trim()} className="btn-primary">
+            {saving ? 'Создаю...' : 'Создать проект'}
           </button>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Field({ label, value, onChange, textarea }: any) {
-  return (
-    <div>
-      <label className="mb-2 block text-sm text-stone-400">{label}</label>
-      {textarea ? (
-        <textarea rows={3} value={value} onChange={(e) => onChange(e.target.value)} className="input-base resize-none" />
-      ) : (
-        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="input-base" />
-      )}
     </div>
   )
 }
