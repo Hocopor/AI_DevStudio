@@ -1,4 +1,5 @@
 import io
+import mimetypes
 from minio import Minio
 from minio.error import S3Error
 from loguru import logger
@@ -68,6 +69,24 @@ def list_files(bucket: str, prefix: str = "") -> list[str]:
     client = get_minio()
     objects = client.list_objects(bucket, prefix=prefix, recursive=True)
     return [obj.object_name for obj in objects]
+
+
+def list_file_objects(bucket: str, prefix: str = "") -> list[dict]:
+    client = get_minio()
+    objects = client.list_objects(bucket, prefix=prefix, recursive=True)
+    items = []
+    for obj in objects:
+        content_type = mimetypes.guess_type(obj.object_name)[0] or "application/octet-stream"
+        items.append(
+            {
+                "path": obj.object_name,
+                "size": getattr(obj, "size", 0) or 0,
+                "last_modified": getattr(obj, "last_modified", None),
+                "etag": getattr(obj, "etag", None),
+                "content_type": content_type,
+            }
+        )
+    return items
 
 
 def save_agent_artifact(

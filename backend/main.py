@@ -6,7 +6,7 @@ from loguru import logger
 from core.config import settings
 from core.database import engine
 from models.all_models import Base
-from api.routes import auth, projects, tasks, agents, notifications, dashboard
+from api.routes import auth, projects, tasks, agents, notifications, dashboard, artifacts
 from api.routes import skills, codex_accounts, finance
 from api.websocket import ws_dashboard, ws_project
 from services.minio_service import init_buckets
@@ -51,6 +51,7 @@ app.add_middleware(
 # Роуты
 app.include_router(auth.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
+app.include_router(artifacts.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
 app.include_router(agents.router, prefix="/api")
 app.include_router(notifications.router, prefix="/api")

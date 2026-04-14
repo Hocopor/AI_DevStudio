@@ -174,6 +174,48 @@ class CodexAccount(Base):
 
 
 # ──────────────────────────────────────────────
+# PROJECT INTEGRATIONS
+# ──────────────────────────────────────────────
+class GithubIntegration(Base):
+    __tablename__ = "github_integrations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    project_id: Mapped[str] = mapped_column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), unique=True)
+    repo_owner: Mapped[str] = mapped_column(String(200), nullable=False)
+    repo_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    default_branch: Mapped[str] = mapped_column(String(200), default="main")
+    base_path: Mapped[str] = mapped_column(String(500), default="")
+    allowed_artifact_extensions: Mapped[list] = mapped_column(
+        JSONB,
+        default=lambda: [
+            ".md", ".txt", ".json", ".yml", ".yaml", ".html", ".css", ".js", ".mjs",
+            ".ts", ".tsx", ".jsx", ".py", ".sql", ".sh", ".svg",
+        ],
+    )
+    blocked_path_patterns: Mapped[list] = mapped_column(
+        JSONB,
+        default=lambda: [
+            ".env",
+            ".env.*",
+            "*.pem",
+            "*.key",
+            "*.p12",
+            "*.crt",
+            "id_rsa*",
+            ".git/*",
+            "node_modules/*",
+            "__pycache__/*",
+            "*.sqlite",
+            "*.db",
+        ],
+    )
+    oauth_token_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+# ──────────────────────────────────────────────
 # API USAGE LOGS
 # ──────────────────────────────────────────────
 class APIUsageLog(Base):

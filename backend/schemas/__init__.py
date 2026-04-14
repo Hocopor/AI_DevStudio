@@ -61,6 +61,63 @@ class ProjectOut(BaseModel):
         from_attributes = True
 
 
+class ArtifactOut(BaseModel):
+    path: str
+    filename: str
+    agent_id: Optional[str] = None
+    size: int = 0
+    last_modified: Optional[datetime] = None
+    content_type: Optional[str] = None
+
+
+class ArtifactPreviewOut(BaseModel):
+    path: str
+    filename: str
+    content: str
+    content_type: str
+    truncated: bool = False
+
+
+class GithubIntegrationUpsert(BaseModel):
+    repo_owner: str
+    repo_name: str
+    default_branch: str = "main"
+    base_path: str = ""
+    oauth_token: Optional[str] = None
+    allowed_artifact_extensions: List[str] = Field(default_factory=list)
+    blocked_path_patterns: List[str] = Field(default_factory=list)
+    is_active: bool = True
+
+
+class GithubIntegrationOut(BaseModel):
+    project_id: str
+    repo_owner: str
+    repo_name: str
+    default_branch: str
+    base_path: str
+    allowed_artifact_extensions: List[str]
+    blocked_path_patterns: List[str]
+    is_active: bool
+    has_token: bool
+    repo_url: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class GithubPublishRequest(BaseModel):
+    artifact_path: str
+    target_path: Optional[str] = None
+    commit_message: str = "Publish generated artifact from AI DevStudio"
+
+
+class GithubPublishResult(BaseModel):
+    commit_sha: str
+    target_path: str
+    repo_url: str
+    html_url: str
+    branch: str
+
+
 # ──────────────────────────────────────────────
 # TASKS
 # ──────────────────────────────────────────────

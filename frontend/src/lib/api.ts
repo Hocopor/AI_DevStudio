@@ -51,6 +51,14 @@ export const projectsApi = {
   update: (id: string, data: any) => api.put(`/projects/${id}`, data),
   delete: (id: string)            => api.delete(`/projects/${id}`),
   stats:  (id: string)            => api.get(`/projects/${id}/stats`),
+  artifacts: (id: string)         => api.get(`/projects/${id}/artifacts`),
+  previewArtifact: (id: string, path: string) =>
+    api.get(`/projects/${id}/artifacts/preview`, { params: { path } }),
+  downloadArtifactUrl: (id: string, path: string) =>
+    `${API_URL}/api/projects/${id}/artifacts/download?path=${encodeURIComponent(path)}`,
+  getGithub: (id: string)         => api.get(`/projects/${id}/github`),
+  saveGithub: (id: string, data: any) => api.put(`/projects/${id}/github`, data),
+  publishArtifact: (id: string, data: any) => api.post(`/projects/${id}/github/publish-artifact`, data),
 }
 
 export const tasksApi = {
